@@ -206,13 +206,15 @@ export class UISystem {
     this.renderUpgradeButton('hp', 'upgrade-hp', 'Unit HP');
     this.renderUpgradeButton('income', 'upgrade-income', 'Resource Income');
 
-    this.unitsLayer.innerHTML = '';
-    for (const unit of this.game.units.filter((u) => !u.dead)) {
-      const dot = document.createElement('div');
-      dot.className = `unit ${unit.side} ${unit.type === 'ranged' ? 'ranged' : ''}`;
-      dot.style.left = `${unit.x}px`;
-      dot.title = `${unit.side} ${unit.type} (${Math.ceil(unit.hp)} HP)`;
-      this.unitsLayer.appendChild(dot);
+    if (this.unitsLayer) {
+      this.unitsLayer.innerHTML = '';
+      for (const unit of this.game.units.filter((u) => !u.dead)) {
+        const dot = document.createElement('div');
+        dot.className = `unit ${unit.side} ${unit.type === 'ranged' ? 'ranged' : ''}`;
+        dot.style.left = `${unit.x}px`;
+        dot.title = `${unit.side} ${unit.type} (${Math.ceil(unit.hp)} HP)`;
+        this.unitsLayer.appendChild(dot);
+      }
     }
   }
 
@@ -242,7 +244,7 @@ export class UISystem {
 }
 
 export class GameManager {
-  constructor(levels) {
+  constructor(levels, hooks = {}) {
     this.levels = levels;
     this.isRunning = false;
     this.lastFrame = 0;
@@ -254,6 +256,7 @@ export class GameManager {
     this.structures = null;
     this.unitSystem = new UnitSystem();
     this.ui = new UISystem(this);
+    this.hooks = hooks;
 
     this.bindUI();
     this.loadLevel(1);
@@ -285,6 +288,7 @@ export class GameManager {
     this.spawner = new SpawnerSystem(this.economy, this.upgrades, level);
     this.units = [];
     this.ui.hideEndState();
+    if (this.hooks.onLevelLoaded) this.hooks.onLevelLoaded(this);
 
     if (!this.isRunning) {
       this.isRunning = true;
@@ -319,6 +323,7 @@ export class GameManager {
     }
 
     this.ui.render();
+    if (this.hooks.onFrame) this.hooks.onFrame(this, dt);
 
     if (this.isRunning) {
       requestAnimationFrame((ts) => this.loop(ts));
