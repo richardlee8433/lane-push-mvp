@@ -36,10 +36,11 @@ assets/
 ```
 
 - Place runtime-loaded 3D models in `assets/models/`.
-  - Expected filenames for current runtime wiring are:
-    - `player.glb`
-    - `barrel.glb`
-    - `boss.glb`
+  - The runtime now loads these as PlayCanvas `container` assets and instantiates them for gameplay entities:
+    - `player.glb` → player entity visual
+    - `barrel.glb` → regular enemy/barrel visuals
+    - `boss.glb` → boss entity visual
+  - If any model fails to load at runtime, the game falls back to built-in primitive meshes.
 - Place image textures in `assets/textures/`.
 - Place sound files in `assets/audio/`.
 
