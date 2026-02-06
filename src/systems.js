@@ -103,20 +103,23 @@ export class GameManager {
   }
 
   bindInput() {
+    const isLeftKey = (event) => event.code === 'KeyA' || event.key === 'ArrowLeft';
+    const isRightKey = (event) => event.code === 'KeyD' || event.key === 'ArrowRight';
+
     window.addEventListener('keydown', (event) => {
-      if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') {
+      if (isLeftKey(event)) {
         this.keys.left = true;
       }
-      if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') {
+      if (isRightKey(event)) {
         this.keys.right = true;
       }
     });
 
     window.addEventListener('keyup', (event) => {
-      if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') {
+      if (isLeftKey(event)) {
         this.keys.left = false;
       }
-      if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') {
+      if (isRightKey(event)) {
         this.keys.right = false;
       }
     });
@@ -185,6 +188,7 @@ export class GameManager {
 
   updateMovement(dt) {
     const laneSpeed = 11;
+    // Horizontal axis convention: left is -X, right is +X.
     if (this.keys.left) this.player.x -= laneSpeed * dt;
     if (this.keys.right) this.player.x += laneSpeed * dt;
     this.player.x = Math.max(this.player.minX, Math.min(this.player.maxX, this.player.x));
