@@ -3,6 +3,7 @@ import { FollowCamera } from './follow_camera.js';
 import { LaneGround } from './lane_ground.js';
 import { LowPolyEnvironment } from './environment_lowpoly.js';
 import { RenderAdapter } from './render_adapter.js';
+import { ParallaxBackground, parallaxConfig } from './parallax_background.js';
 
 function createLighting(app) {
   app.scene.ambientLight = new pc.Color(0.35, 0.35, 0.4);
@@ -65,10 +66,15 @@ export async function startPlayCanvasGame() {
     lookAhead: 20,
     smooth: 0.1
   });
+  const parallaxBackground = new ParallaxBackground(app, {
+    referenceEntity: renderer.followTarget,
+    parallaxConfig
+  });
 
   app.on('update', (dt) => {
     environment.update(dt);
     followCamera.update(dt);
+    parallaxBackground.update();
   });
 
   const response = await fetch('./data/levels.json');
