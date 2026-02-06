@@ -1,25 +1,52 @@
 {
+  "progression": {
+    "base": 25,
+    "growth": 18,
+    "levelUpBonuses": {
+      "damageMultiplier": 1.15,
+      "fireRateMultiplier": 0.93,
+      "rangeAdd": 0.8
+    }
+  },
   "levels": [
     {
       "id": 1,
-      "enemySpawnInterval": 3,
-      "enemyWaveSize": 1,
-      "enemyStatMultiplier": 1.0,
-      "structureHpMultiplier": 1.0
+      "speed": 12,
+      "distanceToBoss": 200,
+      "rowInterval": 14,
+      "barrelHP": 28,
+      "xpPerKill": 8,
+      "coinPerKill": 5,
+      "boss": {
+        "hp": 230,
+        "spawnOffset": 24
+      }
     },
     {
       "id": 2,
-      "enemySpawnInterval": 2.5,
-      "enemyWaveSize": 2,
-      "enemyStatMultiplier": 1.2,
-      "structureHpMultiplier": 1.25
+      "speed": 13,
+      "distanceToBoss": 230,
+      "rowInterval": 13,
+      "barrelHP": 36,
+      "xpPerKill": 10,
+      "coinPerKill": 6,
+      "boss": {
+        "hp": 320,
+        "spawnOffset": 28
+      }
     },
     {
       "id": 3,
-      "enemySpawnInterval": 2,
-      "enemyWaveSize": 3,
-      "enemyStatMultiplier": 1.45,
-      "structureHpMultiplier": 1.5
+      "speed": 14,
+      "distanceToBoss": 260,
+      "rowInterval": 12,
+      "barrelHP": 46,
+      "xpPerKill": 12,
+      "coinPerKill": 7,
+      "boss": {
+        "hp": 440,
+        "spawnOffset": 32
+      }
     }
   ]
 }

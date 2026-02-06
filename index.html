@@ -8,35 +8,17 @@
 </head>
 <body>
   <main>
-    <h1>Lane Push Game – MVP</h1>
-    <section id="hud">
-      <div id="resources">Resources: 0</div>
-      <div id="level">Level: 1</div>
-      <div id="player-hq">Player HQ: 0</div>
-      <div id="enemy-hq">Enemy HQ: 0</div>
-    </section>
-
-    <section id="controls">
-      <h2>Spawn Units</h2>
-      <button id="spawn-melee">Spawn Melee (25)</button>
-      <button id="spawn-ranged">Spawn Ranged (35)</button>
-
-      <h2>Upgrades</h2>
-      <button id="upgrade-damage">Unit Damage Lv1 (60)</button>
-      <button id="upgrade-hp">Unit HP Lv1 (60)</button>
-      <button id="upgrade-income">Resource Income Lv1 (80)</button>
-
-      <h2>Levels</h2>
-      <button class="level-btn" data-level="1">Level 1</button>
-      <button class="level-btn" data-level="2">Level 2</button>
-      <button class="level-btn" data-level="3">Level 3</button>
-    </section>
-
     <section id="battlefield">
       <canvas id="application-canvas"></canvas>
-    </section>
 
-    <section id="status-screen" class="hidden"></section>
+      <div id="hud-minimal">
+        <div id="coins-counter">Coins: 0</div>
+        <div id="distance-counter">0m / 0m</div>
+      </div>
+
+      <div id="levelup-effect" class="hidden"></div>
+      <section id="status-screen" class="hidden"></section>
+    </section>
   </main>
 
   <script src="https://code.playcanvas.com/playcanvas-stable.min.js"></script>
