@@ -1,57 +1,19 @@
 body {
-  font-family: Arial, sans-serif;
   margin: 0;
   background: #0f1520;
   color: #e7edf7;
+  font-family: Arial, sans-serif;
 }
 
 main {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 16px;
-}
-
-#hud {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-#hud > div,
-#controls,
-#status-screen {
-  background: #1b2432;
-  border: 1px solid #2a3a52;
-  border-radius: 6px;
-  padding: 8px;
-}
-
-#controls {
-  margin-bottom: 12px;
-}
-
-button {
-  margin-right: 8px;
-  margin-bottom: 8px;
-  padding: 6px 10px;
-  border: 1px solid #4f6e96;
-  background: #233248;
-  color: #e7edf7;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  width: 100vw;
+  height: 100vh;
 }
 
 #battlefield {
   position: relative;
-  height: 520px;
-  border: 2px solid #4f6e96;
-  border-radius: 8px;
+  width: 100%;
+  height: 100%;
   background: #09131e;
   overflow: hidden;
 }
@@ -62,12 +24,59 @@ button:disabled {
   display: block;
 }
 
+#hud-minimal {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+#coins-counter {
+  font-size: 24px;
+  font-weight: 700;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+#distance-counter {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+#levelup-effect {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%) scale(0.9);
+  font-size: 40px;
+  font-weight: 900;
+  color: #ffe27b;
+  letter-spacing: 2px;
+  text-shadow: 0 0 22px rgba(255, 226, 123, 0.9);
+  opacity: 0;
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+
+#levelup-effect.show {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
 #status-screen {
-  margin-top: 12px;
-  font-size: 18px;
-  font-weight: bold;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 42px;
+  font-weight: 900;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }

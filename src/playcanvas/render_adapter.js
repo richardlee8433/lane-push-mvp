@@ -1,8 +1,3 @@
-import { LANE } from '../config.js';
-
-const LANE_LENGTH = 120;
-const LANE_SCALE = LANE_LENGTH / (LANE.endX - LANE.startX);
-
 function createMaterial(color) {
   const material = new pc.StandardMaterial();
   material.diffuse = color;
@@ -13,74 +8,69 @@ function createMaterial(color) {
 export class RenderAdapter {
   constructor(app) {
     this.app = app;
-    this.unitEntities = new Map();
+    this.targetEntities = new Map();
 
-    this.playerMaterial = createMaterial(new pc.Color(0.2, 0.7, 1));
-    this.enemyMaterial = createMaterial(new pc.Color(1, 0.35, 0.35));
-    this.playerHQMaterial = createMaterial(new pc.Color(0.1, 0.45, 1));
-    this.enemyHQMaterial = createMaterial(new pc.Color(1, 0.2, 0.2));
+    this.playerMaterial = createMaterial(new pc.Color(0.25, 0.75, 1));
+    this.barrelMaterial = createMaterial(new pc.Color(0.75, 0.45, 0.2));
+    this.bossMaterial = createMaterial(new pc.Color(0.95, 0.2, 0.2));
 
-    this.playerHQ = this.createHQ('PlayerHQ', this.playerHQMaterial, 0);
-    this.enemyHQ = this.createHQ('EnemyHQ', this.enemyHQMaterial, LANE_LENGTH);
+    this.playerEntity = new pc.Entity('Runner');
+    this.playerEntity.addComponent('render', { type: 'capsule' });
+    this.playerEntity.render.material = this.playerMaterial;
+    this.playerEntity.setLocalScale(1, 1.5, 1);
+    this.playerEntity.setPosition(0, 1.2, 0);
+    app.root.addChild(this.playerEntity);
 
     this.followTarget = new pc.Entity('FollowTarget');
     this.followTarget.setPosition(0, 1, 0);
     app.root.addChild(this.followTarget);
   }
 
-  createHQ(name, material, z) {
-    const entity = new pc.Entity(name);
-    entity.addComponent('render', { type: 'box' });
-    entity.render.material = material;
-    entity.setLocalScale(4, 4, 4);
-    entity.setPosition(0, 2, z);
+  createTargetEntity(target) {
+    const entity = new pc.Entity(`${target.type}-${target.id}`);
+    entity.addComponent('render', { type: target.type === 'boss' ? 'box' : 'cylinder' });
+    entity.render.material = target.type === 'boss' ? this.bossMaterial : this.barrelMaterial;
+
+    if (target.type === 'boss') {
+      entity.setLocalScale(4.5, 4.5, 4.5);
+    } else {
+      entity.setLocalScale(1.3, 1.3, 1.3);
+    }
+
     this.app.root.addChild(entity);
+    this.targetEntities.set(target.id, entity);
     return entity;
   }
 
-  mapLaneToZ(laneX) {
-    return (laneX - LANE.startX) * LANE_SCALE;
-  }
-
   sync(game) {
-    const livingUnits = game.units.filter((unit) => !unit.dead);
-    const activeIds = new Set(livingUnits.map((unit) => unit.id));
+    const activeIds = new Set();
 
-    for (const unit of livingUnits) {
-      let entity = this.unitEntities.get(unit.id);
-      if (!entity) {
-        entity = new pc.Entity(`${unit.side}-${unit.type}-${unit.id}`);
-        entity.addComponent('render', { type: unit.type === 'ranged' ? 'sphere' : 'capsule' });
-        entity.render.material = unit.side === 'player' ? this.playerMaterial : this.enemyMaterial;
-        entity.setLocalScale(unit.type === 'ranged' ? 1.2 : 1, unit.type === 'ranged' ? 1.2 : 2, unit.type === 'ranged' ? 1.2 : 1);
-        this.app.root.addChild(entity);
-        this.unitEntities.set(unit.id, entity);
-      }
+    this.playerEntity.setPosition(game.player.x, 1.2, game.player.z);
+    this.followTarget.setPosition(game.player.x, 1, game.player.z);
 
-      const z = this.mapLaneToZ(unit.x);
-      entity.setPosition(0, unit.type === 'ranged' ? 1.2 : 1, z);
+    for (const target of game.targets) {
+      if (!target.alive) continue;
+      activeIds.add(target.id);
+
+      let entity = this.targetEntities.get(target.id);
+      if (!entity) entity = this.createTargetEntity(target);
+
+      const y = target.type === 'boss' ? 2.2 : 0.8;
+      entity.setPosition(target.x, y, target.z);
     }
 
-    for (const [id, entity] of this.unitEntities.entries()) {
+    for (const [id, entity] of this.targetEntities.entries()) {
       if (!activeIds.has(id)) {
         entity.destroy();
-        this.unitEntities.delete(id);
+        this.targetEntities.delete(id);
       }
     }
-
-    const playerUnits = livingUnits.filter((unit) => unit.side === 'player');
-    const maxPlayerZ = playerUnits.length > 0
-      ? Math.max(...playerUnits.map((unit) => this.mapLaneToZ(unit.x)))
-      : 0;
-
-    this.followTarget.setPosition(0, 1, Math.max(0, maxPlayerZ));
   }
 
   clearUnits() {
-    for (const entity of this.unitEntities.values()) {
+    for (const entity of this.targetEntities.values()) {
       entity.destroy();
     }
-    this.unitEntities.clear();
-    this.followTarget.setPosition(0, 1, 0);
+    this.targetEntities.clear();
   }
 }

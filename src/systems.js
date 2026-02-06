@@ -1,293 +1,145 @@
-import { BASE_VALUES, LANE, UNIT_TYPES, UPGRADE_CONFIG } from './config.js';
+let targetIdCounter = 1;
 
-let unitIdCounter = 1;
-
-export class EconomySystem {
-  constructor() {
-    this.resources = BASE_VALUES.startingResources;
-    this.baseIncome = BASE_VALUES.incomePerSecond;
-    this.incomeMultiplier = 1;
-  }
-
-  tick(dt) {
-    this.resources += this.baseIncome * this.incomeMultiplier * dt;
-  }
-
-  spend(cost) {
-    if (this.resources < cost) return false;
-    this.resources -= cost;
-    return true;
-  }
-}
-
-export class UpgradeSystem {
-  constructor(economy) {
-    this.economy = economy;
-    this.levels = { damage: 0, hp: 0, income: 0 };
-  }
-
-  buy(type) {
-    const cfg = UPGRADE_CONFIG[type];
-    const level = this.levels[type];
-    if (!cfg || level >= cfg.maxLevel) return false;
-    const cost = cfg.costs[level];
-    if (!this.economy.spend(cost)) return false;
-
-    this.levels[type] += 1;
-    if (type === 'income') {
-      this.economy.incomeMultiplier = cfg.multipliers[this.levels.income - 1];
-    }
-    return true;
-  }
-
-  applyUnitStats(base) {
-    const damageMultiplier = UPGRADE_CONFIG.damage.multipliers[this.levels.damage - 1] || 1;
-    const hpMultiplier = UPGRADE_CONFIG.hp.multipliers[this.levels.hp - 1] || 1;
-
-    return {
-      ...base,
-      hp: base.hp * hpMultiplier,
-      maxHp: base.hp * hpMultiplier,
-      damage: base.damage * damageMultiplier
-    };
-  }
-}
-
-export class StructureSystem {
-  constructor(level) {
-    this.level = level;
-    this.playerHQ = { hp: BASE_VALUES.playerHQHp * level.structureHpMultiplier, maxHp: BASE_VALUES.playerHQHp * level.structureHpMultiplier };
-    this.enemyHQ = { hp: BASE_VALUES.enemyHQHp * level.structureHpMultiplier, maxHp: BASE_VALUES.enemyHQHp * level.structureHpMultiplier };
-  }
-
-  damageHQ(side, amount) {
-    if (side === 'player') {
-      this.playerHQ.hp = Math.max(0, this.playerHQ.hp - amount);
-    } else {
-      this.enemyHQ.hp = Math.max(0, this.enemyHQ.hp - amount);
-    }
-  }
-}
-
-export class SpawnerSystem {
-  constructor(economy, upgrades, level) {
-    this.economy = economy;
-    this.upgrades = upgrades;
-    this.level = level;
-    this.enemySpawnTimer = 0;
-  }
-
-  spawnUnit(side, type) {
-    const template = UNIT_TYPES[type];
-    if (!template) return null;
-
-    if (side === 'player' && !this.economy.spend(template.cost)) {
-      return null;
-    }
-
-    const upgraded = side === 'player' ? this.upgrades.applyUnitStats(template) : {
-      ...template,
-      hp: template.hp * this.level.enemyStatMultiplier,
-      maxHp: template.hp * this.level.enemyStatMultiplier,
-      damage: template.damage * this.level.enemyStatMultiplier
-    };
-
-    return {
-      id: unitIdCounter++,
-      side,
-      type,
-      x: side === 'player' ? LANE.startX : LANE.endX,
-      y: 118,
-      hp: upgraded.hp,
-      maxHp: upgraded.maxHp,
-      damage: upgraded.damage,
-      range: upgraded.range,
-      attackInterval: upgraded.attackInterval,
-      speed: upgraded.speed,
-      attackCooldown: 0,
-      dead: false
+class ProgressionSystem {
+  constructor(config = {}) {
+    this.base = config.base ?? 20;
+    this.growth = config.growth ?? 10;
+    this.bonuses = {
+      damageMultiplier: config.levelUpBonuses?.damageMultiplier ?? 1.12,
+      fireRateMultiplier: config.levelUpBonuses?.fireRateMultiplier ?? 0.94,
+      rangeAdd: config.levelUpBonuses?.rangeAdd ?? 0.6
     };
   }
 
-  tickEnemySpawner(dt) {
-    this.enemySpawnTimer += dt;
-    if (this.enemySpawnTimer < this.level.enemySpawnInterval) return [];
-    this.enemySpawnTimer = 0;
-
-    const wave = [];
-    for (let i = 0; i < this.level.enemyWaveSize; i += 1) {
-      const type = i % 2 === 0 ? 'melee' : 'ranged';
-      const unit = this.spawnUnit('enemy', type);
-      if (unit) {
-        unit.x += i * 16;
-        wave.push(unit);
-      }
-    }
-    return wave;
+  thresholdFor(level) {
+    return this.base + this.growth * (level - 1);
   }
 }
 
-export class UnitSystem {
-  update(units, structureSystem, dt) {
-    for (const unit of units) {
-      if (unit.dead) continue;
-      if (unit.attackCooldown > 0) unit.attackCooldown -= dt;
-
-      const enemies = units.filter((other) => !other.dead && other.side !== unit.side);
-      const targetUnit = this.findClosestInRange(unit, enemies);
-
-      if (targetUnit) {
-        this.attackUnit(unit, targetUnit);
-        continue;
-      }
-
-      const hq = unit.side === 'player' ? structureSystem.enemyHQ : structureSystem.playerHQ;
-      const hqX = unit.side === 'player' ? LANE.endX + 30 : LANE.startX - 30;
-      const distToHQ = Math.abs(unit.x - hqX);
-
-      if (distToHQ <= Math.max(unit.range, LANE.structureDamageRange)) {
-        if (unit.attackCooldown <= 0) {
-          hq.hp = Math.max(0, hq.hp - unit.damage);
-          unit.attackCooldown = unit.attackInterval;
-        }
-      } else {
-        unit.x += unit.side === 'player' ? unit.speed * dt : -unit.speed * dt;
-      }
-    }
-
-    for (const unit of units) {
-      if (unit.hp <= 0) unit.dead = true;
-    }
-  }
-
-  findClosestInRange(unit, enemies) {
-    let closest = null;
-    let minDistance = Infinity;
-
-    for (const enemy of enemies) {
-      const dist = Math.abs(enemy.x - unit.x);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closest = enemy;
-      }
-    }
-
-    if (closest && minDistance <= unit.range) return closest;
-    return null;
-  }
-
-  attackUnit(attacker, defender) {
-    if (attacker.attackCooldown > 0) return;
-    defender.hp -= attacker.damage;
-    attacker.attackCooldown = attacker.attackInterval;
-  }
-}
-
-export class UISystem {
+export class RunnerUI {
   constructor(game) {
     this.game = game;
-    this.resourcesEl = document.getElementById('resources');
-    this.levelEl = document.getElementById('level');
-    this.playerHqEl = document.getElementById('player-hq');
-    this.enemyHqEl = document.getElementById('enemy-hq');
-    this.unitsLayer = document.getElementById('units-layer');
-    this.statusScreen = document.getElementById('status-screen');
+    this.coinsEl = document.getElementById('coins-counter');
+    this.distanceEl = document.getElementById('distance-counter');
+    this.levelUpEl = document.getElementById('levelup-effect');
+    this.statusEl = document.getElementById('status-screen');
+    this.levelUpTimeout = null;
   }
 
   render() {
-    const { economy, structures, level, upgrades } = this.game;
+    this.coinsEl.textContent = `Coins: ${Math.floor(this.game.coins)}`;
 
-    this.resourcesEl.textContent = `Resources: ${Math.floor(economy.resources)}`;
-    this.levelEl.textContent = `Level: ${level.id}`;
-    this.playerHqEl.textContent = `Player HQ: ${Math.ceil(structures.playerHQ.hp)}/${Math.ceil(structures.playerHQ.maxHp)}`;
-    this.enemyHqEl.textContent = `Enemy HQ: ${Math.ceil(structures.enemyHQ.hp)}/${Math.ceil(structures.enemyHQ.maxHp)}`;
-
-    this.renderUpgradeButton('damage', 'upgrade-damage', 'Unit Damage');
-    this.renderUpgradeButton('hp', 'upgrade-hp', 'Unit HP');
-    this.renderUpgradeButton('income', 'upgrade-income', 'Resource Income');
-
-    if (this.unitsLayer) {
-      this.unitsLayer.innerHTML = '';
-      for (const unit of this.game.units.filter((u) => !u.dead)) {
-        const dot = document.createElement('div');
-        dot.className = `unit ${unit.side} ${unit.type === 'ranged' ? 'ranged' : ''}`;
-        dot.style.left = `${unit.x}px`;
-        dot.title = `${unit.side} ${unit.type} (${Math.ceil(unit.hp)} HP)`;
-        this.unitsLayer.appendChild(dot);
-      }
+    if (this.distanceEl) {
+      const current = Math.floor(this.game.player.z);
+      const target = this.game.level?.distanceToBoss ?? 0;
+      this.distanceEl.textContent = `${current}m / ${target}m`;
     }
   }
 
-  renderUpgradeButton(type, elementId, label) {
-    const button = document.getElementById(elementId);
-    const cfg = UPGRADE_CONFIG[type];
-    const current = this.game.upgrades.levels[type];
-    if (current >= cfg.maxLevel) {
-      button.textContent = `${label} MAX`;
-      button.disabled = true;
-      return;
-    }
-    const nextLevel = current + 1;
-    const cost = cfg.costs[current];
-    button.textContent = `${label} Lv${nextLevel} (${cost})`;
+  showLevelUp(level) {
+    if (!this.levelUpEl) return;
+    this.levelUpEl.textContent = `LEVEL ${level}!`;
+    this.levelUpEl.classList.remove('hidden');
+    this.levelUpEl.classList.add('show');
+    window.clearTimeout(this.levelUpTimeout);
+    this.levelUpTimeout = window.setTimeout(() => {
+      this.levelUpEl.classList.remove('show');
+      this.levelUpEl.classList.add('hidden');
+    }, 700);
   }
 
-  showEndState(text) {
-    this.statusScreen.classList.remove('hidden');
-    this.statusScreen.textContent = text;
+  showStatus(text) {
+    this.statusEl.textContent = text;
+    this.statusEl.classList.remove('hidden');
   }
 
-  hideEndState() {
-    this.statusScreen.classList.add('hidden');
-    this.statusScreen.textContent = '';
+  hideStatus() {
+    this.statusEl.textContent = '';
+    this.statusEl.classList.add('hidden');
   }
 }
 
 export class GameManager {
-  constructor(levels, hooks = {}) {
-    this.levels = levels;
-    this.isRunning = false;
-    this.lastFrame = 0;
-    this.units = [];
-    this.level = null;
-    this.economy = null;
-    this.upgrades = null;
-    this.spawner = null;
-    this.structures = null;
-    this.unitSystem = new UnitSystem();
-    this.ui = new UISystem(this);
+  constructor(config, hooks = {}) {
+    this.levels = config.levels ?? [];
+    this.progression = new ProgressionSystem(config.progression);
     this.hooks = hooks;
 
-    this.bindUI();
-    this.loadLevel(1);
+    this.currentLevelIndex = 0;
+    this.level = null;
+
+    this.coins = 0;
+    this.isRunning = false;
+    this.lastFrame = 0;
+
+    this.player = {
+      x: 0,
+      z: 0,
+      laneStep: 2.6,
+      minX: -5.2,
+      maxX: 5.2,
+      hp: 100,
+      maxHp: 100,
+      damage: 14,
+      fireInterval: 0.3,
+      fireRange: 18,
+      fireCooldown: 0,
+      level: 1,
+      xp: 0,
+      xpToNext: this.progression.thresholdFor(1)
+    };
+
+    this.targets = [];
+    this.spawnCursorZ = 0;
+    this.bossSpawned = false;
+    this.levelCompleted = false;
+
+    this.ui = new RunnerUI(this);
+
+    this.keys = { left: false, right: false };
+    this.bindInput();
+
+    this.loadLevel(0);
   }
 
-  bindUI() {
-    document.getElementById('spawn-melee').addEventListener('click', () => this.spawnPlayer('melee'));
-    document.getElementById('spawn-ranged').addEventListener('click', () => this.spawnPlayer('ranged'));
-    document.getElementById('upgrade-damage').addEventListener('click', () => this.upgrades.buy('damage'));
-    document.getElementById('upgrade-hp').addEventListener('click', () => this.upgrades.buy('hp'));
-    document.getElementById('upgrade-income').addEventListener('click', () => this.upgrades.buy('income'));
+  bindInput() {
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') {
+        this.keys.left = true;
+      }
+      if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') {
+        this.keys.right = true;
+      }
+    });
 
-    document.querySelectorAll('.level-btn').forEach((button) => {
-      button.addEventListener('click', () => {
-        const levelId = Number(button.dataset.level);
-        this.loadLevel(levelId);
-      });
+    window.addEventListener('keyup', (event) => {
+      if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') {
+        this.keys.left = false;
+      }
+      if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') {
+        this.keys.right = false;
+      }
     });
   }
 
-  loadLevel(levelId) {
-    const level = this.levels.find((entry) => entry.id === levelId);
-    if (!level) return;
+  loadLevel(index) {
+    this.currentLevelIndex = index;
+    this.level = this.levels[index];
+    if (!this.level) {
+      this.endRun('All levels clear!');
+      return;
+    }
 
-    this.level = level;
-    this.economy = new EconomySystem();
-    this.upgrades = new UpgradeSystem(this.economy);
-    this.structures = new StructureSystem(level);
-    this.spawner = new SpawnerSystem(this.economy, this.upgrades, level);
-    this.units = [];
-    this.ui.hideEndState();
+    this.player.z = 0;
+    this.player.x = 0;
+    this.player.fireCooldown = 0;
+
+    this.targets = [];
+    this.spawnCursorZ = this.level.rowInterval;
+    this.bossSpawned = false;
+    this.levelCompleted = false;
+    this.ui.hideStatus();
+
     if (this.hooks.onLevelLoaded) this.hooks.onLevelLoaded(this);
 
     if (!this.isRunning) {
@@ -297,10 +149,129 @@ export class GameManager {
     }
   }
 
-  spawnPlayer(type) {
-    if (!this.isRunning) return;
-    const unit = this.spawner.spawnUnit('player', type);
-    if (unit) this.units.push(unit);
+  spawnRow(z) {
+    const laneCount = 5;
+    for (let i = 0; i < laneCount; i += 1) {
+      if (Math.random() < 0.5) continue;
+      const laneX = -5.2 + i * 2.6;
+      this.targets.push({
+        id: targetIdCounter++,
+        type: 'barrel',
+        x: laneX,
+        z,
+        hp: this.level.barrelHP,
+        maxHp: this.level.barrelHP,
+        xpReward: this.level.xpPerKill,
+        coinReward: this.level.coinPerKill,
+        alive: true
+      });
+    }
+  }
+
+  spawnBoss() {
+    this.targets.push({
+      id: targetIdCounter++,
+      type: 'boss',
+      x: 0,
+      z: this.level.distanceToBoss + this.level.boss.spawnOffset,
+      hp: this.level.boss.hp,
+      maxHp: this.level.boss.hp,
+      xpReward: this.level.xpPerKill * 6,
+      coinReward: this.level.coinPerKill * 8,
+      alive: true
+    });
+    this.bossSpawned = true;
+  }
+
+  updateMovement(dt) {
+    const laneSpeed = 11;
+    if (this.keys.left) this.player.x -= laneSpeed * dt;
+    if (this.keys.right) this.player.x += laneSpeed * dt;
+    this.player.x = Math.max(this.player.minX, Math.min(this.player.maxX, this.player.x));
+
+    this.player.z += this.level.speed * dt;
+  }
+
+  updateSpawning() {
+    const ahead = this.player.z + 55;
+    while (!this.bossSpawned && this.spawnCursorZ <= ahead && this.spawnCursorZ < this.level.distanceToBoss) {
+      this.spawnRow(this.spawnCursorZ);
+      this.spawnCursorZ += this.level.rowInterval;
+    }
+
+    if (!this.bossSpawned && this.player.z >= this.level.distanceToBoss) {
+      this.spawnBoss();
+    }
+  }
+
+  updateAutoFire(dt) {
+    this.player.fireCooldown -= dt;
+    if (this.player.fireCooldown > 0) return;
+
+    let best = null;
+    let bestDist = Infinity;
+    for (const target of this.targets) {
+      if (!target.alive) continue;
+      const dz = target.z - this.player.z;
+      if (dz < -2) continue;
+      const dx = target.x - this.player.x;
+      const dist = Math.hypot(dx, dz);
+      if (dist <= this.player.fireRange && dist < bestDist) {
+        best = target;
+        bestDist = dist;
+      }
+    }
+
+    if (!best) return;
+
+    best.hp -= this.player.damage;
+    this.player.fireCooldown = this.player.fireInterval;
+
+    if (best.hp <= 0) {
+      best.alive = false;
+      this.awardKill(best);
+    }
+  }
+
+  awardKill(target) {
+    this.coins += target.coinReward;
+    this.player.xp += target.xpReward;
+
+    while (this.player.xp >= this.player.xpToNext) {
+      this.player.xp -= this.player.xpToNext;
+      this.player.level += 1;
+      this.player.xpToNext = this.progression.thresholdFor(this.player.level);
+      this.player.damage *= this.progression.bonuses.damageMultiplier;
+      this.player.fireInterval *= this.progression.bonuses.fireRateMultiplier;
+      this.player.fireRange += this.progression.bonuses.rangeAdd;
+      this.ui.showLevelUp(this.player.level);
+    }
+
+    if (target.type === 'boss') {
+      this.levelCompleted = true;
+    }
+  }
+
+  cleanupTargets() {
+    const trailingCutoff = this.player.z - 20;
+    this.targets = this.targets.filter((target) => target.alive && target.z >= trailingCutoff);
+  }
+
+  advanceLevelIfNeeded() {
+    if (!this.levelCompleted) return;
+
+    const nextIndex = this.currentLevelIndex + 1;
+    if (nextIndex >= this.levels.length) {
+      this.endRun('All levels clear!');
+      return;
+    }
+
+    this.loadLevel(nextIndex);
+  }
+
+  endRun(text) {
+    this.isRunning = false;
+    this.ui.showStatus(text);
   }
 
   loop(timestamp) {
@@ -309,24 +280,15 @@ export class GameManager {
     const dt = Math.min(0.05, (timestamp - this.lastFrame) / 1000);
     this.lastFrame = timestamp;
 
-    this.economy.tick(dt);
-    this.units.push(...this.spawner.tickEnemySpawner(dt));
-    this.unitSystem.update(this.units, this.structures, dt);
-    this.units = this.units.filter((unit) => !unit.dead);
-
-    if (this.structures.enemyHQ.hp <= 0) {
-      this.isRunning = false;
-      this.ui.showEndState('Victory! Enemy HQ Destroyed.');
-    } else if (this.structures.playerHQ.hp <= 0) {
-      this.isRunning = false;
-      this.ui.showEndState('Defeat! Player HQ Destroyed.');
-    }
+    this.updateMovement(dt);
+    this.updateSpawning();
+    this.updateAutoFire(dt);
+    this.cleanupTargets();
+    this.advanceLevelIfNeeded();
 
     this.ui.render();
     if (this.hooks.onFrame) this.hooks.onFrame(this, dt);
 
-    if (this.isRunning) {
-      requestAnimationFrame((ts) => this.loop(ts));
-    }
+    if (this.isRunning) requestAnimationFrame((ts) => this.loop(ts));
   }
 }

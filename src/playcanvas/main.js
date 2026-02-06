@@ -22,7 +22,7 @@ function createCamera(app) {
     clearColor: new pc.Color(0.07, 0.1, 0.14),
     fov: 68,
     nearClip: 0.1,
-    farClip: 500
+    farClip: 800
   });
   camera.setPosition(0, 8, -14);
   app.root.addChild(camera);
@@ -50,7 +50,7 @@ export async function startPlayCanvasGame() {
   window.addEventListener('resize', () => resizeToElement(app, canvas));
 
   createLighting(app);
-  new LaneGround(app, { width: 20, length: 220 });
+  new LaneGround(app, { width: 20, length: 420 });
 
   const cameraEntity = createCamera(app);
   const renderer = new RenderAdapter(app);
@@ -69,7 +69,7 @@ export async function startPlayCanvasGame() {
   const response = await fetch('./data/levels.json');
   const data = await response.json();
 
-  return new GameManager(data.levels, {
+  return new GameManager(data, {
     onFrame(game) {
       renderer.sync(game);
     },
