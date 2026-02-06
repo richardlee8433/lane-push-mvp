@@ -1,0 +1,109 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: #0f1520;
+  color: #e7edf7;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+#hud {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+#hud > div,
+#controls,
+#status-screen {
+  background: #1b2432;
+  border: 1px solid #2a3a52;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+#controls {
+  margin-bottom: 12px;
+}
+
+button {
+  margin-right: 8px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border: 1px solid #4f6e96;
+  background: #233248;
+  color: #e7edf7;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#battlefield {
+  position: relative;
+  height: 220px;
+  border: 2px solid #4f6e96;
+  border-radius: 8px;
+  background: linear-gradient(#1f3a2b, #1a2f23);
+  overflow: hidden;
+}
+
+.structure {
+  position: absolute;
+  top: 80px;
+  width: 70px;
+  height: 60px;
+  line-height: 60px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: bold;
+  border-radius: 6px;
+}
+
+.structure.player {
+  left: 10px;
+  background: #3e74d8;
+}
+
+.structure.enemy {
+  right: 10px;
+  background: #d85656;
+}
+
+.unit {
+  position: absolute;
+  top: 118px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.unit.player {
+  background: #77a8ff;
+}
+
+.unit.enemy {
+  background: #ff8888;
+}
+
+.unit.ranged {
+  box-shadow: 0 0 0 2px #ffd166 inset;
+}
+
+#status-screen {
+  margin-top: 12px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.hidden {
+  display: none;
+}

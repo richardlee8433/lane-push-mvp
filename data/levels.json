@@ -1,0 +1,25 @@
+{
+  "levels": [
+    {
+      "id": 1,
+      "enemySpawnInterval": 3,
+      "enemyWaveSize": 1,
+      "enemyStatMultiplier": 1.0,
+      "structureHpMultiplier": 1.0
+    },
+    {
+      "id": 2,
+      "enemySpawnInterval": 2.5,
+      "enemyWaveSize": 2,
+      "enemyStatMultiplier": 1.2,
+      "structureHpMultiplier": 1.25
+    },
+    {
+      "id": 3,
+      "enemySpawnInterval": 2,
+      "enemyWaveSize": 3,
+      "enemyStatMultiplier": 1.45,
+      "structureHpMultiplier": 1.5
+    }
+  ]
+}
