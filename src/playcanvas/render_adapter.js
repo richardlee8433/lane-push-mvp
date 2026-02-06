@@ -5,16 +5,36 @@ function createMaterial(color) {
   return material;
 }
 
+const ASSET_ROOTS = {
+  models: '/assets/models',
+  textures: '/assets/textures',
+  audio: '/assets/audio'
+};
+
+// Runtime media contract:
+// - Put model files in /assets/models (for example: player.glb, barrel.glb, boss.glb).
+// - Put texture files in /assets/textures.
+// - Put audio files in /assets/audio.
+// PlayCanvas runtime-loaded media should always resolve from these folders.
+const RUNTIME_MODEL_PATHS = {
+  player: `${ASSET_ROOTS.models}/player.glb`,
+  barrel: `${ASSET_ROOTS.models}/barrel.glb`,
+  boss: `${ASSET_ROOTS.models}/boss.glb`
+};
+
 export class RenderAdapter {
   constructor(app) {
     this.app = app;
     this.targetEntities = new Map();
+    this.runtimeModelPaths = RUNTIME_MODEL_PATHS;
 
     this.playerMaterial = createMaterial(new pc.Color(0.25, 0.75, 1));
     this.barrelMaterial = createMaterial(new pc.Color(0.75, 0.45, 0.2));
     this.bossMaterial = createMaterial(new pc.Color(0.95, 0.2, 0.2));
 
     this.playerEntity = new pc.Entity('Runner');
+    // Primitive placeholder stays for now; when model loading is enabled,
+    // load this player from /assets/models/player.glb.
     this.playerEntity.addComponent('render', { type: 'capsule' });
     this.playerEntity.render.material = this.playerMaterial;
     this.playerEntity.setLocalScale(1, 1.5, 1);
@@ -28,6 +48,10 @@ export class RenderAdapter {
 
   createTargetEntity(target) {
     const entity = new pc.Entity(`${target.type}-${target.id}`);
+    // Primitive placeholders stay for now. Contributors should add runtime models to:
+    // - /assets/models/barrel.glb
+    // - /assets/models/boss.glb
+    // and keep textures/audio under /assets/textures and /assets/audio.
     entity.addComponent('render', { type: target.type === 'boss' ? 'box' : 'cylinder' });
     entity.render.material = target.type === 'boss' ? this.bossMaterial : this.barrelMaterial;
 

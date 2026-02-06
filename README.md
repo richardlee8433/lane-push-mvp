@@ -24,6 +24,40 @@ This MVP keeps the original lane-push gameplay systems and data while replacing 
 - `index.html` loads PlayCanvas and starts `src/main.js`
 - `src/main.js` delegates to `src/playcanvas/main.js`
 
+## Assets
+
+Runtime media now uses a dedicated top-level `/assets` contract:
+
+```text
+assets/
+  models/
+  textures/
+  audio/
+```
+
+- Place runtime-loaded 3D models in `assets/models/`.
+  - Expected filenames for current runtime wiring are:
+    - `player.glb`
+    - `barrel.glb`
+    - `boss.glb`
+- Place image textures in `assets/textures/`.
+- Place sound files in `assets/audio/`.
+
+At runtime, PlayCanvas code assumes absolute asset URLs rooted at:
+- `/assets/models/*`
+- `/assets/textures/*`
+- `/assets/audio/*`
+
+Example runtime model path:
+
+```text
+/assets/models/player.glb
+```
+
+Important:
+- This repository does not fetch or download external assets as part of runtime setup.
+- Codex should never fetch external assets for this project.
+
 ## Run Locally
 Use any static server from repository root:
 
