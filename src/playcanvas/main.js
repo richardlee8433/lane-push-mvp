@@ -3,10 +3,11 @@ import { FollowCamera } from './follow_camera.js';
 import { LaneGround } from './lane_ground.js';
 import { LowPolyEnvironment } from './environment_lowpoly.js';
 import { RenderAdapter } from './render_adapter.js';
-import { ParallaxBackground, parallaxConfig } from './parallax_background.js';
+
+const SKYBOX_HDR_PATH = '/assets/textures/evening_road_01_puresky_1k.hdr';
 
 function createLighting(app) {
-  app.scene.ambientLight = new pc.Color(0.35, 0.35, 0.4);
+  app.scene.ambientLight = new pc.Color(0.03, 0.03, 0.03);
 
   const light = new pc.Entity('DirectionalLight');
   light.addComponent('light', {
@@ -16,6 +17,46 @@ function createLighting(app) {
   });
   light.setEulerAngles(45, 25, 0);
   app.root.addChild(light);
+}
+
+function loadTextureAsset(app, path) {
+  return new Promise((resolve, reject) => {
+    app.assets.loadFromUrl(path, 'texture', (error, asset) => {
+      if (error || !asset) {
+        reject(error || new Error(`Failed to load texture: ${path}`));
+        return;
+      }
+
+      resolve(asset.resource);
+    });
+  });
+}
+
+function applyHdriToScene(app, sourceTexture) {
+  const scene = app.scene;
+  scene.skyboxIntensity = 1;
+
+  if (pc.EnvLighting && typeof pc.EnvLighting.generateSkyboxCubemap === 'function') {
+    const skyboxCubemap = pc.EnvLighting.generateSkyboxCubemap(sourceTexture);
+    const envAtlas = pc.EnvLighting.generateLightingSource
+      ? pc.EnvLighting.generateLightingSource(sourceTexture)
+      : pc.EnvLighting.generateAtlas(sourceTexture);
+
+    scene.setSkybox(skyboxCubemap);
+    scene.envAtlas = envAtlas;
+    return;
+  }
+
+  scene.envAtlas = sourceTexture;
+}
+
+async function setupHdriEnvironment(app) {
+  try {
+    const hdrTexture = await loadTextureAsset(app, SKYBOX_HDR_PATH);
+    applyHdriToScene(app, hdrTexture);
+  } catch (error) {
+    console.warn('[skybox] Failed to load HDRI skybox.', error);
+  }
 }
 
 function createCamera(app) {
@@ -49,6 +90,8 @@ export async function startPlayCanvasGame() {
   resizeToElement(app, canvas);
   app.start();
 
+  await setupHdriEnvironment(app);
+
   window.addEventListener('resize', () => resizeToElement(app, canvas));
 
   createLighting(app);
@@ -71,17 +114,10 @@ export async function startPlayCanvasGame() {
     lookAhead: 20,
     smooth: 0.1
   });
-  const parallaxBackground = new ParallaxBackground(app, {
-    texturePath: '/assets/textures/background.JPG',
-    referenceEntity: renderer.followTarget,
-    cameraEntity,
-    parallaxConfig
-  });
 
   app.on('update', (dt) => {
     environment.update(dt);
     followCamera.update(dt);
-    parallaxBackground.update();
   });
 
   const response = await fetch('./data/levels.json');
