@@ -16,13 +16,16 @@ export class LowPolyEnvironment {
     this.segments = options.segments ?? 80;
     this.time = 0;
     this.enableLandforms = options.enableLandforms ?? false;
+    this.enableWater = options.enableWater ?? true;
 
     this.waterMaterial = createMaterial(new pc.Color(0.12, 0.52, 0.62));
     this.landMaterial = createMaterial(new pc.Color(0.34, 0.42, 0.34));
     this.rockMaterial = createMaterial(new pc.Color(0.42, 0.4, 0.38));
 
     this.setupAtmosphere();
-    this.createWater();
+    if (this.enableWater) {
+      this.createWater();
+    }
     if (this.enableLandforms) {
       this.createDistantLandforms();
     }
@@ -189,6 +192,10 @@ export class LowPolyEnvironment {
   }
 
   update(dt) {
+    if (!this.waterMesh || !this.positions || !this.normals) {
+      return;
+    }
+
     this.time += dt;
 
     const vertexCount = this.positions.length / 3;

@@ -53,7 +53,12 @@ export async function startPlayCanvasGame() {
 
   createLighting(app);
   new LaneGround(app, { width: 20, length: 420 });
-  const environment = new LowPolyEnvironment(app, { size: 420, segments: 80, enableLandforms: false });
+  const environment = new LowPolyEnvironment(app, {
+    size: 420,
+    segments: 80,
+    enableLandforms: false,
+    enableWater: false
+  });
 
   const cameraEntity = createCamera(app);
   const renderer = new RenderAdapter(app, {
