@@ -15,6 +15,7 @@ export class LowPolyEnvironment {
     this.size = options.size ?? 400;
     this.segments = options.segments ?? 80;
     this.time = 0;
+    this.enableLandforms = options.enableLandforms ?? false;
 
     this.waterMaterial = createMaterial(new pc.Color(0.12, 0.52, 0.62));
     this.landMaterial = createMaterial(new pc.Color(0.34, 0.42, 0.34));
@@ -22,7 +23,9 @@ export class LowPolyEnvironment {
 
     this.setupAtmosphere();
     this.createWater();
-    this.createDistantLandforms();
+    if (this.enableLandforms) {
+      this.createDistantLandforms();
+    }
   }
 
   setupAtmosphere() {
