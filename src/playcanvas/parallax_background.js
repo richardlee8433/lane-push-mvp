@@ -6,12 +6,14 @@ const DEFAULT_PARALLAX_CONFIG = {
   ocean: 0.35
 };
 
+const TEXTURE_PATH = '/assets/textures/background.JPG';
+
 const LAYER_DEFS = [
-  { key: 'sky', name: 'ParallaxSky', uvMinY: 0.72, uvMaxY: 1.0, y: 22, z: 290, width: 520, height: 150 },
-  { key: 'mountains', name: 'ParallaxMountains', uvMinY: 0.53, uvMaxY: 0.72, y: 12, z: 270, width: 500, height: 105 },
-  { key: 'forest', name: 'ParallaxForest', uvMinY: 0.34, uvMaxY: 0.53, y: 7, z: 250, width: 460, height: 85 },
-  { key: 'beach', name: 'ParallaxBeach', uvMinY: 0.18, uvMaxY: 0.34, y: 2.8, z: 232, width: 420, height: 58 },
-  { key: 'ocean', name: 'ParallaxOcean', uvMinY: 0.0, uvMaxY: 0.18, y: 0.5, z: 215, width: 380, height: 46 }
+  { key: 'sky', name: 'ParallaxSky', uvMinY: 0.78, uvMaxY: 1.0, y: 150, z: 560, width: 1800, height: 560 },
+  { key: 'mountains', name: 'ParallaxMountains', uvMinY: 0.58, uvMaxY: 0.78, y: 92, z: 540, width: 1700, height: 420 },
+  { key: 'forest', name: 'ParallaxForest', uvMinY: 0.38, uvMaxY: 0.58, y: 52, z: 520, width: 1600, height: 320 },
+  { key: 'beach', name: 'ParallaxBeach', uvMinY: 0.18, uvMaxY: 0.38, y: 22, z: 500, width: 1500, height: 220 },
+  { key: 'ocean', name: 'ParallaxOcean', uvMinY: 0.0, uvMaxY: 0.18, y: -6, z: 480, width: 1400, height: 170 }
 ];
 
 export class ParallaxBackground {
@@ -19,6 +21,7 @@ export class ParallaxBackground {
     this.app = app;
     this.root = new pc.Entity('ParallaxBackgroundRoot');
     this.referenceEntity = options.referenceEntity ?? null;
+    this.cameraEntity = options.cameraEntity ?? null;
     this.anchorX = options.anchorX ?? 0;
     this.parallaxConfig = {
       ...DEFAULT_PARALLAX_CONFIG,
@@ -27,19 +30,23 @@ export class ParallaxBackground {
     this.layers = [];
 
     app.root.addChild(this.root);
-    this.loadAndBuild(options.texturePath || '/assets/textures/background.JPG');
+    this.loadAndBuild(options.texturePath || TEXTURE_PATH);
   }
 
   loadAndBuild(texturePath) {
     this.app.assets.loadFromUrl(texturePath, 'texture', (err, textureAsset) => {
       if (err || !textureAsset) {
-        console.warn(`[ParallaxBackground] Failed to load ${texturePath}`, err);
+        console.warn('[parallax] background load failed', texturePath, err);
         return;
       }
+
+      console.log('[parallax] background loaded', textureAsset.url);
 
       for (const def of LAYER_DEFS) {
         this.layers.push(this.createLayer(def, textureAsset.resource));
       }
+
+      this.orientLayersToCamera();
     });
   }
 
@@ -52,7 +59,7 @@ export class ParallaxBackground {
     });
 
     entity.setLocalScale(def.width, def.height, 1);
-    entity.setLocalEulerAngles(0, 180, 0);
+    entity.setEulerAngles(90, 180, 0);
     entity.setPosition(this.anchorX, def.y, def.z);
 
     const material = new pc.StandardMaterial();
@@ -63,21 +70,24 @@ export class ParallaxBackground {
     material.opacity = 1;
     material.blendType = pc.BLEND_NONE;
     material.cull = pc.CULLFACE_NONE;
+    material.depthWrite = false;
 
-    // Each layer samples a vertical stripe of the same source image by remapping UVs.
-    // Tiling shrinks UV height to the desired slice, and offset moves that slice into place.
-    // Example: uvMinY=0.53 uvMaxY=0.72 -> tiling.y=0.19 and offset.y=0.53.
     const uvHeight = def.uvMaxY - def.uvMinY;
     material.emissiveMapTiling = new pc.Vec2(1, uvHeight);
     material.emissiveMapOffset = new pc.Vec2(0, def.uvMinY);
     material.update();
 
     entity.render.material = material;
+    entity.render.layers = [pc.LAYERID_WORLD];
     this.root.addChild(entity);
+
+    const meshInstance = entity.render.meshInstances[0];
+    meshInstance.cull = false;
 
     return {
       key: def.key,
       baseX: this.anchorX,
+      y: def.y,
       z: def.z,
       entity
     };
@@ -87,16 +97,32 @@ export class ParallaxBackground {
     this.referenceEntity = entity;
   }
 
-  update() {
-    if (!this.referenceEntity || this.layers.length === 0) return;
+  setCameraEntity(entity) {
+    this.cameraEntity = entity;
+  }
 
-    const referenceX = this.referenceEntity.getPosition().x;
+  orientLayersToCamera() {
+    if (!this.cameraEntity) return;
+
+    const cameraRotation = this.cameraEntity.getRotation();
+    for (const layer of this.layers) {
+      layer.entity.setRotation(cameraRotation);
+      layer.entity.rotateLocal(90, 180, 0);
+    }
+  }
+
+  update() {
+    if (this.layers.length === 0) return;
+
+    const referenceX = this.referenceEntity ? this.referenceEntity.getPosition().x : 0;
 
     for (const layer of this.layers) {
       const parallaxFactor = this.parallaxConfig[layer.key] ?? 0;
       const x = layer.baseX + referenceX * parallaxFactor;
-      layer.entity.setPosition(x, layer.entity.getPosition().y, layer.z);
+      layer.entity.setPosition(x, layer.y, layer.z);
     }
+
+    this.orientLayersToCamera();
   }
 }
 
