@@ -26,10 +26,17 @@ export class LowPolyEnvironment {
   }
 
   setupAtmosphere() {
-    this.app.scene.fog = pc.FOG_LINEAR;
-    this.app.scene.fogColor = new pc.Color(0.56, 0.7, 0.8);
-    this.app.scene.fogStart = 70;
-    this.app.scene.fogEnd = 360;
+    try {
+      this.app.scene.fogType = pc.FOG_LINEAR;
+      this.app.scene.fogColor = new pc.Color(0.56, 0.7, 0.8);
+      this.app.scene.fogStart = 70;
+      this.app.scene.fogEnd = 360;
+    } catch (error) {
+      if (!LowPolyEnvironment.didWarnFogSetup) {
+        console.warn('LowPolyEnvironment: fog setup unsupported, continuing without fog.', error);
+        LowPolyEnvironment.didWarnFogSetup = true;
+      }
+    }
   }
 
   createWater() {
