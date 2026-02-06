@@ -70,8 +70,8 @@ export async function startPlayCanvasGame() {
   const data = await response.json();
 
   return new GameManager(data, {
-    onFrame(game) {
-      renderer.sync(game);
+    onFrame(game, dt) {
+      renderer.sync(game, dt);
     },
     onLevelLoaded() {
       renderer.clearUnits();
