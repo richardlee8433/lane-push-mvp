@@ -1,4 +1,5 @@
 import { ShotFx } from './fx_shots.js';
+import { PlayerHealthBar } from './player_health_bar.js';
 
 function createMaterial(color) {
   const material = new pc.StandardMaterial();
@@ -46,8 +47,9 @@ function createProceduralRunState() {
 }
 
 export class RenderAdapter {
-  constructor(app) {
+  constructor(app, options = {}) {
     this.app = app;
+    this.options = options;
     this.targetEntities = new Map();
     this.runtimeModelPaths = RUNTIME_MODEL_PATHS;
     this.modelAssets = new Map();
@@ -61,6 +63,9 @@ export class RenderAdapter {
     this.playerEntity.setPosition(0, 1.2, 0);
     app.root.addChild(this.playerEntity);
     this.setVisual(this.playerEntity, 'player', () => this.createPlayerPrimitiveFallback());
+    this.playerHealthBar = new PlayerHealthBar(app, this.playerEntity);
+    this.lastPlayerHp = null;
+    this.damageFeedbackTimer = 0;
 
     this.followTarget = new pc.Entity('FollowTarget');
     this.followTarget.setPosition(0, 1, 0);
@@ -184,6 +189,19 @@ export class RenderAdapter {
 
     visual.setLocalScale(scale[0], scale[1] + bob, scale[2]);
     visual.setLocalEulerAngles(bob * 8, yaw + sway, 0);
+
+    if (this.damageFeedbackTimer > 0) {
+      const t = this.damageFeedbackTimer / 0.1;
+      const pulse = Math.max(0, Math.sin((1 - t) * Math.PI));
+      this.playerEntity.setLocalScale(1 + pulse * 0.08, 1 - pulse * 0.06, 1 + pulse * 0.08);
+    } else {
+      this.playerEntity.setLocalScale(1, 1, 1);
+    }
+  }
+
+  triggerDamageFeedback() {
+    this.damageFeedbackTimer = 0.1;
+    this.options.onPlayerDamaged?.();
   }
 
   setVisual(parent, modelKey, fallbackFactory) {
@@ -222,6 +240,18 @@ export class RenderAdapter {
 
     this.playerEntity.setPosition(game.player.x, 1.2, game.player.z);
     this.followTarget.setPosition(game.player.x, 1, game.player.z);
+    this.playerHealthBar.setRatio(game.player.hp / game.player.maxHp);
+    this.playerHealthBar.update(dt);
+
+    if (this.lastPlayerHp !== null && game.player.hp < this.lastPlayerHp) {
+      this.triggerDamageFeedback();
+    }
+    this.lastPlayerHp = game.player.hp;
+
+    if (this.damageFeedbackTimer > 0) {
+      this.damageFeedbackTimer = Math.max(0, this.damageFeedbackTimer - dt);
+    }
+
     this.updatePlayerRunMotion(dt);
 
     for (const target of game.targets) {
@@ -262,5 +292,6 @@ export class RenderAdapter {
     this.targetEntities.clear();
     this.targetStateMap.clear();
     this.shotFx.clear();
+    this.lastPlayerHp = null;
   }
 }
