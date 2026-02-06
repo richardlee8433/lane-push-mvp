@@ -53,7 +53,9 @@ export async function startPlayCanvasGame() {
   new LaneGround(app, { width: 20, length: 420 });
 
   const cameraEntity = createCamera(app);
-  const renderer = new RenderAdapter(app);
+  const renderer = new RenderAdapter(app, {
+    onPlayerDamaged: () => followCamera.shake(0.2, 0.1)
+  });
   const followCamera = new FollowCamera(cameraEntity, {
     target: renderer.followTarget,
     height: 8,
